@@ -141,7 +141,7 @@
             <div class="full-width"><label>Ref ID (Barcode)</label><div class="scan-group"><input type="text" class="d-ref" value="${data.ref || ''}"><div class="btn-icon-scan" onclick="startScan(this, 'ref')"><i class="material-icons-round">barcode_scanner</i></div></div></div>
             <div class="full-width"><label>Gift Code (OCR)</label><div class="scan-group"><input type="text" class="d-gc" value="${data.gc || ''}"><div class="btn-icon-scan" onclick="startScan(this, 'gc')"><i class="material-icons-round">photo_camera</i></div></div></div>
             <div class="full-width"><label>Activation (QR)</label><div class="scan-group"><input type="text" class="d-act" value="${data.act || ''}"><div class="btn-icon-scan" onclick="startScan(this, 'act')"><i class="material-icons-round">qr_code_2</i></div><div class="btn-sms" onclick="sendSMS(this)"><i class="material-icons-round">sms</i></div></div></div>
-            <div><label>Disc %</label><input type="number" class="d-disc price-input" value="${data.disc || ''}" oninput="save(); refresh();"></div>
+            <div><label>Disc (% or ₹)</label><input type="text" class="d-disc price-input" placeholder="e.g. 50% or 50" value="${data.disc || ''}" oninput="save(); refresh();"></div>
             <div><label>Net (₹)</label><input type="text" class="d-net price-input" readonly><span class="savings-badge d-save" style="font-size:11px; font-weight:bold; color:var(--success); margin-top:4px; display:block;">Save: ₹0.00</span></div>
             <div><label>Redeemed</label><select class="d-status price-input" onchange="save();"><option ${data.status=='No'?'selected':''}>No</option><option ${data.status=='Yes'?'selected':''}>Yes</option></select></div>
         `;
@@ -287,8 +287,19 @@
         document.querySelectorAll('.item-card').forEach(card => {
             const dt = card.querySelector('.d-date').value, 
                   price = parseFloat(card.querySelector('.d-price').value) || 0, 
-                  disc = parseFloat(card.querySelector('.d-disc').value) || 0;
-            const net = price - (price * (disc / 100)), saved = price - net;
+                  discRaw = card.querySelector('.d-disc').value.trim();
+            
+            let saved = 0;
+            if (discRaw !== "") {
+                if (discRaw.endsWith('%')) {
+                    const discPercent = parseFloat(discRaw.replace('%', '')) || 0;
+                    saved = price * (discPercent / 100);
+                } else {
+                    saved = parseFloat(discRaw) || 0;
+                }
+            }
+
+            const net = Math.max(0, price - saved);
             card.querySelector('.d-net').value = net.toFixed(2);
             card.querySelector('.d-save').innerText = `Save: ₹${saved.toFixed(2)}`;
             if(!dt || dt.startsWith(year)) { total += net; card.style.display = "grid"; } else card.style.display = "none";
