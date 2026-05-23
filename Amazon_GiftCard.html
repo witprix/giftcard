@@ -127,7 +127,17 @@
             <button class="btn-del" onclick="this.parentElement.remove(); save(); refresh();"><i class="material-icons-round">close</i></button>
             <div><label>Date</label><input type="date" class="d-date price-input" value="${data.date || ''}" onchange="save(); refresh();"></div>
             <div><label>Price (₹)</label><input type="number" class="d-price price-input" value="${data.price || ''}" oninput="save(); refresh();"></div>
-            <div class="full-width"><label>Description</label><input type="text" class="d-item price-input" placeholder="Store Name" value="${data.item || ''}" oninput="save();"></div>
+            <div class="full-width">
+                <label>Giftcard's</label>
+                <select class="d-item price-input" onchange="save();">
+                    <option value="Amazon" ${data.item=='Amazon'?'selected':''}>Amazon</option>
+                    <option value="Flipkart" ${data.item=='Flipkart'?'selected':''}>Flipkart</option>
+                    <option value="Bigbasket" ${data.item=='Bigbasket'?'selected':''}>Bigbasket</option>
+                    <option value="Zepto" ${data.item=='Zepto'?'selected':''}>Zepto</option>
+                    <option value="Swiggy" ${data.item=='Swiggy'?'selected':''}>Swiggy</option>
+                    <option value="Dominos" ${data.item=='Dominos'?'selected':''}>Dominos</option>
+                </select>
+            </div>
             <div class="full-width"><label>Ref ID (Barcode)</label><div class="scan-group"><input type="text" class="d-ref" value="${data.ref || ''}"><div class="btn-icon-scan" onclick="startScan(this, 'ref')"><i class="material-icons-round">barcode_scanner</i></div></div></div>
             <div class="full-width"><label>Gift Code (OCR)</label><div class="scan-group"><input type="text" class="d-gc" value="${data.gc || ''}"><div class="btn-icon-scan" onclick="startScan(this, 'gc')"><i class="material-icons-round">photo_camera</i></div></div></div>
             <div class="full-width"><label>Activation (QR)</label><div class="scan-group"><input type="text" class="d-act" value="${data.act || ''}"><div class="btn-icon-scan" onclick="startScan(this, 'act')"><i class="material-icons-round">qr_code_2</i></div><div class="btn-sms" onclick="sendSMS(this)"><i class="material-icons-round">sms</i></div></div></div>
@@ -296,7 +306,6 @@
         localStorage.setItem(DB_KEY, JSON.stringify(list));
     }
 
-    // UPDATED EXPORT WITH "SAVE AS" FOLDER PICKER
     async function exportData() {
         const data = localStorage.getItem(DB_KEY);
         if (!data || data === "[]") {
@@ -304,7 +313,6 @@
             return;
         }
 
-        // 1. Try modern "Save File Picker" (Opens native folder window)
         if ('showSaveFilePicker' in window) {
             try {
                 const handle = await window.showSaveFilePicker({
@@ -317,15 +325,13 @@
                 const writable = await handle.createWritable();
                 await writable.write(data);
                 await writable.close();
-                return; // Success
+                return;
             } catch (err) {
                 if (err.name !== 'AbortError') console.error(err);
-                // If user cancels system dialog, we stop.
                 if (err.name === 'AbortError') return; 
             }
         }
 
-        // 2. Fallback for mobile/other browsers (Prompt + Download)
         let fileName = prompt("Enter filename:", "GiftCard_Backup");
         if (fileName === null) return;
         fileName = fileName.trim().replace(/[^a-z0-9_\-]/gi, '_') || "Backup";
