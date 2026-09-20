@@ -499,6 +499,11 @@ function smsHref(raw, ios) {
   const { to, body } = parseSmsPayload(raw);
   return `sms:${to}${ios ? '&' : '?'}body=${encodeURIComponent(body)}`;   // iOS separates with "&", Android with "?"
 }
+// "AMZPT2000 6014854978289015": the number right after AMZPT is the card value (1000, 2000, 5000, 10000 …).
+function parseActivationAmount(raw) {
+  const m = parseSmsPayload(raw).body.match(/\bAMZPT(\d{2,7})\b/i);
+  return m ? parseInt(m[1], 10) : null;
+}
 function sendSMS(card) {
   const val = fld(card, 'act').value.trim();
   if (!val) return toast('Scan the activation QR first.');
@@ -511,6 +516,23 @@ async function copyCode(input) {
   try { await navigator.clipboard.writeText(v); toast('Gift code copied.'); return; } catch (e) {}
   try { input.focus(); input.select(); input.setSelectionRange(0, 9999); if (document.execCommand('copy')) return toast('Gift code copied.'); } catch (e) {}
   toast('Couldn’t copy. Press and hold the code to copy it.');
+}
+
+// After scanning the activation QR: fill the card value (if the code carries one) and today's date. Both stay editable.
+function applyActivation(card, raw) {
+  if (!card) return;
+  const amount = parseActivationAmount(raw), today = todayStr();
+  const priceEl = fld(card, 'price'), dateEl = fld(card, 'date');
+  const prev = { price: priceEl.value, date: dateEl.value };
+  if (amount !== null) priceEl.value = String(amount);
+  dateEl.value = today;
+  if (yearSel.value !== 'all' && yearSel.value !== today.slice(0, 4)) rebuildYears(today.slice(0, 4));   // keep the card in view
+  refresh(); scheduleSave();
+  toast(amount !== null ? `Card value ₹${amount.toLocaleString('en-IN')} added, dated today` : 'Dated today', { action: 'Undo', duration: 6000, onAction() {
+    priceEl.value = prev.price; dateEl.value = prev.date;
+    rebuildYears(prev.date && yearSel.value !== 'all' ? prev.date.slice(0, 4) : undefined);
+    refresh(); scheduleSave();
+  } });
 }
 
 function onEdit(e) {
@@ -822,9 +844,10 @@ function retake() {
   changeStep(1);
 }
 function confirmCode() {
-  const v = finalCode.value.trim();
-  if (SC.input) { SC.input.value = v; SC.input.dispatchEvent(new Event('input', { bubbles: true })); }   // reuses the normal save/refresh path
+  const v = finalCode.value.trim(), input = SC.input, mode = SC.mode;
+  if (input) { input.value = v; input.dispatchEvent(new Event('input', { bubbles: true })); }   // reuses the normal save/refresh path
   stopScanner();
+  if (input && mode === 'act' && v) applyActivation(input.closest('.item-card'), v);
 }
 $('#btn-close').addEventListener('click', () => stopScanner());
 $('#btn-retake-2').addEventListener('click', retake);
