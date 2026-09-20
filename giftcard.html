@@ -482,10 +482,27 @@ function deleteCard(card) {
   } });
 }
 
+// Activation QR codes are usually an SMS payload:  SMSTO:<number>:<message>  (also SMS:<number>:<message>, sms:<number>?body=<message>).
+// Split it so the number goes in the recipient and ONLY the message goes in the body.
+function parseSmsPayload(raw) {
+  const t = String(raw || '').trim();
+  const m = t.match(/^(?:smsto|mmsto|sms|mms):([^:?;]*)(?:[:?;]([\s\S]*))?$/i);
+  if (!m) return { to: '', body: t };                          // not an SMS payload: whole text is the message
+  let to = m[1].replace(/[\s().-]/g, ''), body = m[2] || '';
+  if (to && !/^\+?\d{3,}$/.test(to)) return { to: '', body: t };  // recipient doesn't look like a number: don't guess
+  const q = body.match(/^body=([\s\S]*)$/i);                 // sms:<number>?body=<message>
+  if (q) { try { body = decodeURIComponent(q[1]); } catch (e) { body = q[1]; } }
+  if (/^\d{11,}$/.test(to)) to = '+' + to;                     // 919972014000 -> +919972014000 (has a country code)
+  return { to, body: body.trim() };
+}
+function smsHref(raw, ios) {
+  const { to, body } = parseSmsPayload(raw);
+  return `sms:${to}${ios ? '&' : '?'}body=${encodeURIComponent(body)}`;   // iOS separates with "&", Android with "?"
+}
 function sendSMS(card) {
   const val = fld(card, 'act').value.trim();
   if (!val) return toast('Scan the activation QR first.');
-  location.href = `sms:${isIOS ? '&' : '?'}body=${encodeURIComponent(val)}`;   // iOS needs "&", Android needs "?"
+  location.href = smsHref(val, isIOS);
 }
 
 async function copyCode(input) {
