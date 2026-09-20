@@ -129,6 +129,19 @@ body.kb .bottom-actions { transform: translateY(110%); }   /* get out of the way
 .toast button { min-height: 44px; padding: 0 6px; background: none; border: 0; color: #8ab4f8; font-weight: 800; }
 body.no-scroll .toast { bottom: auto; top: calc(14px + var(--sat)); }
 
+/* duplicate-record dialog (sits above the scanner overlay and toast) */
+.modal { display: none; position: fixed; inset: 0; z-index: 10010; align-items: center; justify-content: center; background: rgba(15,23,42,.55);
+  padding: calc(16px + var(--sat)) calc(16px + var(--sar)) calc(16px + var(--sab)) calc(16px + var(--sal)); }
+.modal.open { display: flex; }
+.modal-box { width: 100%; max-width: 380px; background: #fff; border-radius: 20px; padding: 22px 20px 18px; box-shadow: 0 12px 40px rgba(0,0,0,.35); }
+.modal-box h2 { margin: 0 0 8px; font-size: 18px; color: #1e293b; }
+.modal-box p { margin: 0 0 12px; font-size: 15px; line-height: 1.4; }
+.modal-box .dup-note { margin: 12px 0 0; font-size: 13px; color: var(--muted); }
+.dup-info { padding: 10px 12px; background: #f1f5f9; border-radius: 12px; font-size: 14px; font-weight: 700; color: #1e293b; overflow-wrap: anywhere; }
+.dup-info small { display: block; margin-top: 2px; font-size: 12px; font-weight: 500; color: var(--muted); }
+.modal-actions { display: flex; gap: 10px; margin-top: 16px; }
+.modal-actions .btn { flex: 1; padding: 0 12px; }
+
 /* scanner */
 #scanner-overlay { display: none; position: fixed; inset: 0; z-index: 9999; background: #000; flex-direction: column; }
 #scanner-overlay.open { display: flex; }
@@ -287,6 +300,19 @@ body.no-scroll .toast { bottom: auto; top: calc(14px + var(--sat)); }
   <button type="button" class="bar-btn export" id="btn-export"><svg class="ic" aria-hidden="true"><use href="#i-download"/></svg>Export</button>
 </nav>
 <input type="file" id="importFile" accept="application/json,.json,text/plain" hidden>
+
+<div id="dup-modal" class="modal" role="alertdialog" aria-modal="true" aria-labelledby="dup-title" aria-describedby="dup-desc">
+  <div class="modal-box">
+    <h2 id="dup-title">Duplicate record exists</h2>
+    <p id="dup-desc">This activation code is already saved on another card:</p>
+    <div class="dup-info"><span id="dup-info"></span><small id="dup-code"></small></div>
+    <p class="dup-note">Override saves it on this card too. Exit discards this scan.</p>
+    <div class="modal-actions">
+      <button type="button" id="dup-override" class="btn btn-danger-soft">Override</button>
+      <button type="button" id="dup-exit" class="btn btn-primary">Exit</button>
+    </div>
+  </div>
+</div>
 
 <div id="toast" class="toast" role="status" aria-live="polite"><span id="toastMsg"></span><button type="button" id="toastAction" hidden></button></div>
 
@@ -837,17 +863,68 @@ $('#photoInput').addEventListener('change', async e => {
 });
 
 /* --- steps 1-3 buttons --- */
+/* --- duplicate activation check --- */
+// Compare the meaningful part of the payload (message text), so SMSTO:/sms: wrappers, case and spacing don't hide a duplicate.
+const normAct = raw => parseSmsPayload(raw).body.toLowerCase().replace(/\s+/g, ' ').trim();
+function findDuplicates(card, raw) {
+  const key = normAct(raw);
+  if (!key) return [];
+  return [...list.querySelectorAll('.item-card')].filter(c => c !== card && normAct(fld(c, 'act').value) === key);
+}
+function describeCard(c) {
+  const d = readCard(c), bits = [d.item];
+  if (d.price) bits.push('₹' + num(d.price).toLocaleString('en-IN'));
+  if (d.date) { const [y, m, day] = d.date.split('-').map(Number); bits.push(new Date(y, m - 1, day).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' })); }
+  if (d.status === 'Yes') bits.push('Redeemed');
+  return bits.join(' · ');
+}
+const dupEl = $('#dup-modal'), dupExit = $('#dup-exit'), dupOverride = $('#dup-override');
+let dupResolve = null;
+function closeDup(override) {
+  if (!dupResolve) return;
+  const r = dupResolve; dupResolve = null;
+  dupEl.classList.remove('open'); r(override);
+}
+function askDuplicate(matches, raw) {                 // textContent only: card names/codes can never inject markup
+  $('#dup-info').textContent = describeCard(matches[0]) + (matches.length > 1 ? `  (+${matches.length - 1} more)` : '');
+  const body = parseSmsPayload(raw).body;
+  $('#dup-code').textContent = body.length > 60 ? body.slice(0, 57) + '…' : body;
+  dupEl.classList.add('open');
+  dupExit.focus();                                     // safe default
+  return new Promise(res => { dupResolve = res; });
+}
+dupOverride.addEventListener('click', () => closeDup(true));
+dupExit.addEventListener('click', () => closeDup(false));
+dupEl.addEventListener('click', e => { if (e.target === dupEl) closeDup(false); });
+window.addEventListener('popstate', () => closeDup(false));       // Android back = Exit
+document.addEventListener('keydown', e => {
+  if (!dupResolve) return;
+  if (e.key === 'Escape') closeDup(false);
+  else if (e.key === 'Tab') { e.preventDefault(); (document.activeElement === dupExit ? dupOverride : dupExit).focus(); }
+});
+
 function retake() {
   SC.ocrToken++; SC.handled = false;
   if (SC.qr) { try { SC.qr.resume(); } catch (e) {} }
   procBtn.disabled = false; procBtn.textContent = 'Read code';
   changeStep(1);
 }
-function confirmCode() {
-  const v = finalCode.value.trim(), input = SC.input, mode = SC.mode;
-  if (input) { input.value = v; input.dispatchEvent(new Event('input', { bubbles: true })); }   // reuses the normal save/refresh path
-  stopScanner();
-  if (input && mode === 'act' && v) applyActivation(input.closest('.item-card'), v);
+let confirming = false;
+async function confirmCode() {
+  if (confirming) return;
+  confirming = true;
+  try {
+    const v = finalCode.value.trim(), input = SC.input, mode = SC.mode, card = input && input.closest('.item-card');
+    if (mode === 'act' && v && card) {
+      const dups = findDuplicates(card, v);
+      if (dups.length && !(await askDuplicate(dups, v))) {        // Exit: change nothing
+        stopScanner(); toast('Scan discarded. Nothing was changed.'); return;
+      }
+    }
+    if (input) { input.value = v; input.dispatchEvent(new Event('input', { bubbles: true })); }   // reuses the normal save/refresh path
+    stopScanner();
+    if (input && mode === 'act' && v) applyActivation(card, v);
+  } finally { confirming = false; }
 }
 $('#btn-close').addEventListener('click', () => stopScanner());
 $('#btn-retake-2').addEventListener('click', retake);
