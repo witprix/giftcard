@@ -1,375 +1,838 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Gift Card Tracker - Pro Export Version</title>
-    <link href="https://fonts.googleapis.com/icon?family=Material+Icons+Round" rel="stylesheet">
-    <script src="https://unpkg.com/html5-qrcode"></script>
-    <script src="https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js"></script>
-    <style>
-        :root { --primary: #4285F4; --success: #34A853; --danger: #EA4335; --secondary: #202124; --bg: #f8f9fa; }
-        body { font-family: 'Segoe UI', sans-serif; background: var(--bg); margin: 0; padding-bottom: 120px; color: #3c4043; overflow-x: hidden; }
-        
-        .top-dash { position: sticky; top: 0; z-index: 100; background: var(--secondary); color: white; padding: 12px 20px; display: flex; justify-content: space-between; align-items: center; }
-        .inr-text { font-size: 1.4rem; font-weight: 800; color: var(--success); }
-        #yearFilter { width: 85px; padding: 6px; font-size: 14px; font-weight: bold; color: white; background: #374151; border: 1px solid #4b5563; border-radius: 8px; }
+<meta charset="UTF-8">
+<!-- viewport-fit=cover lets env(safe-area-inset-*) work on notched iPhones.
+     Zoom is NOT disabled (accessibility); inputs are 16px so iOS doesn't auto-zoom. -->
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#202124">
+<meta name="color-scheme" content="light">
+<meta name="format-detection" content="telephone=no">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="Gift Cards">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<title>Gift Card Tracker</title>
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Crect width='100' height='100' rx='22' fill='%23202124'/%3E%3Ctext x='50' y='70' font-size='58' text-anchor='middle' fill='%2334A853' font-family='sans-serif'%3E%E2%82%B9%3C/text%3E%3C/svg%3E">
 
-        .container { max-width: 800px; margin: 15px auto; padding: 0 12px; }
-        .item-card { background: white; border-radius: 16px; padding: 16px; margin-bottom: 15px; box-shadow: 0 2px 8px rgba(0,0,0,0.06); border: 1px solid #e2e8f0; position: relative; display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
-        .btn-del { position: absolute; top: -10px; right: -10px; background: white; border-radius: 50%; width: 28px; height: 28px; display: flex; align-items: center; justify-content: center; border: none; color: var(--danger); z-index: 5; box-shadow: 0 2px 4px rgba(0,0,0,0.1); }
-        
-        .full-width { grid-column: span 2; }
-        label { font-size: 10px; font-weight: 800; color: #64748b; text-transform: uppercase; margin-bottom: 4px; display: block; }
-        
-        .scan-group { display: flex; align-items: center; background: #fff; border: 1.5px solid #cbd5e1; border-radius: 10px; overflow: hidden; }
-        input, select { width: 100%; border: none; padding: 10px 12px; font-size: 14px; font-weight: 500; outline: none; background: transparent; }
-        .price-input { border: 1.5px solid #cbd5e1; border-radius: 10px; width: 100%; box-sizing: border-box; }
-        .btn-icon-scan { background: #f8fafc; border-left: 1px solid #e2e8f0; color: #64748b; padding: 8px 12px; cursor: pointer; }
-        .btn-sms { background: #e8f0fe; border-left: 1px solid #cbd5e1; color: var(--primary); padding: 8px 12px; cursor: pointer; }
+<style>
+:root {
+  --primary: #4285F4; --success: #34A853; --danger: #EA4335; --secondary: #202124; --bg: #f8f9fa;
+  --ink: #3c4043; --muted: #64748b; --line: #cbd5e1; --hair: #e2e8f0;
+  --sat: env(safe-area-inset-top, 0px);    --sab: env(safe-area-inset-bottom, 0px);
+  --sal: env(safe-area-inset-left, 0px);   --sar: env(safe-area-inset-right, 0px);
+}
+*, *::before, *::after { box-sizing: border-box; }
+[hidden] { display: none !important; }
 
-        #scanner-overlay { display: none; position: fixed; inset: 0; background: #000; z-index: 9999; flex-direction: column; }
-        #reader-container { width: 100%; flex-grow: 1; background: #000; position: relative; overflow: hidden; }
-        #reader { width: 100%; height: 100%; }
-        
-        #scanner-ui-layer { position: absolute; inset: 0; pointer-events: none; z-index: 20; }
-        .scan-window { position: absolute; top: 45%; left: 50%; transform: translate(-50%, -50%); border: 2.5px solid var(--primary); border-radius: 12px; box-shadow: 0 0 0 4000px rgba(0,0,0,0.7); }
-        .rect-box { width: 280px; height: 110px; }
-        .square-box { width: 260px; height: 260px; } 
+html { -webkit-text-size-adjust: 100%; text-size-adjust: 100%; touch-action: manipulation; }
+body {
+  margin: 0; background: var(--bg); color: var(--ink);
+  font-family: system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+  padding-bottom: calc(120px + var(--sab));
+  overscroll-behavior-y: contain;               /* stop accidental pull-to-refresh on Android */
+  -webkit-tap-highlight-color: transparent;
+}
+body.no-scroll { overflow: hidden; }
+button { font: inherit; color: inherit; cursor: pointer; }
+.sr-only { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+:focus-visible { outline: 3px solid rgba(66,133,244,.55); outline-offset: 2px; }
 
-        .scanner-footer { background: #fff; padding: 20px 20px calc(20px + env(safe-area-inset-bottom)); display: flex; flex-direction: column; align-items: center; gap: 15px; border-radius: 24px 24px 0 0; z-index: 100; pointer-events: auto; }
-        .scan-step { display: none; width: 100%; flex-direction: column; align-items: center; gap: 12px; }
-        .active-step { display: flex; }
-        
-        .preview-container { width: 100%; max-width: 280px; height: 150px; overflow: hidden; border-radius: 8px; border: 2px solid var(--primary); background: #000; display: flex; align-items: center; justify-content: center; }
-        #captured-img { max-width: 100%; max-height: 100%; object-fit: contain; }
-        .result-box { width: 100%; text-align: center; font-size: 18px; font-weight: bold; color: var(--primary); padding: 14px; background: #f1f5f9; border-radius: 12px; border: none; box-sizing: border-box; }
+/* icons (inline SVG sprite, works offline) */
+.ic { width: 24px; height: 24px; fill: currentColor; flex: none; display: block; }
 
-        .bottom-actions { position: fixed; bottom: 0; left: 0; right: 0; background: white; padding: 10px 20px 25px; display: flex; justify-content: space-between; align-items: center; border-top: 1px solid #e2e8f0; z-index: 90; }
-        .btn-add-main { background: var(--primary); color: white; width: 56px; height: 56px; border-radius: 50%; display: flex; align-items: center; justify-content: center; box-shadow: 0 4px 12px rgba(66,133,244,0.3); margin-top: -35px; border: 4px solid white; }
-    </style>
+/* header */
+.top-dash {
+  position: sticky; top: 0; z-index: 100; background: var(--secondary); color: #fff;
+  padding: calc(12px + var(--sat)) calc(16px + var(--sar)) 12px calc(16px + var(--sal));
+  display: flex; justify-content: space-between; align-items: center; gap: 12px;
+}
+.top-label { font-size: 11px; font-weight: 700; letter-spacing: .04em; color: #94a3b8; }
+.inr-text { font-size: 1.5rem; font-weight: 800; color: #5bd47a; font-variant-numeric: tabular-nums; }
+#yearFilter {
+  width: 96px; min-height: 44px; padding: 0 28px 0 12px; font-size: 16px; font-weight: 700; color: #fff;
+  background: #374151 url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8'%3E%3Cpath d='M1 1l5 5 5-5' fill='none' stroke='%23fff' stroke-width='1.8' stroke-linecap='round'/%3E%3C/svg%3E") no-repeat right 10px center;
+  border: 1px solid #4b5563; border-radius: 10px; -webkit-appearance: none; appearance: none;
+}
+
+.container { max-width: 800px; margin: 12px auto; padding: 0 calc(12px + var(--sar)) 0 calc(12px + var(--sal)); }
+.backup-note { margin: 0 4px 14px; font-size: 12px; color: var(--muted); }
+.backup-note.warn { color: #b45309; font-weight: 600; }
+
+/* cards */
+.item-card {
+  position: relative; background: #fff; border: 1px solid var(--hair); border-radius: 16px;
+  padding: 16px; margin-bottom: 16px; box-shadow: 0 2px 8px rgba(0,0,0,.06);
+  display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px;
+}
+.item-card.redeemed { background: #f4faf6; border-color: #cfe8d6; }
+.item-card > * { min-width: 0; }               /* prevents iOS date input from blowing out the grid */
+.full-width { grid-column: 1 / -1; }
+label { display: block; margin-bottom: 4px; font-size: 11px; font-weight: 800; letter-spacing: .04em; text-transform: uppercase; color: var(--muted); }
+
+.btn-del {
+  position: absolute; top: -12px; right: -6px; z-index: 5; width: 32px; height: 32px; padding: 0;
+  display: grid; place-items: center; border: 0; border-radius: 50%; background: #fff; color: var(--danger);
+  box-shadow: 0 2px 6px rgba(0,0,0,.18);
+}
+.btn-del::after { content: ""; position: absolute; inset: -6px; }   /* bigger touch target */
+.btn-del .ic { width: 18px; height: 18px; }
+
+input, select {
+  width: 100%; min-height: 44px; padding: 10px 12px; font: inherit; font-size: 16px; font-weight: 500; color: var(--ink);
+  background: #fff; border: 0; outline: none; border-radius: 0; -webkit-appearance: none; appearance: none;
+}
+.price-input { border: 1.5px solid var(--line); border-radius: 10px; }
+.price-input:focus, .scan-group:focus-within { border-color: var(--primary); box-shadow: 0 0 0 3px rgba(66,133,244,.2); }
+input[type="date"] { display: block; text-align: left; }
+input[type="date"]::-webkit-date-and-time-value { text-align: left; }
+input[readonly] { background: #f8fafc; font-weight: 700; }
+select.price-input {
+  padding-right: 32px; text-overflow: ellipsis;
+  background: #fff url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8'%3E%3Cpath d='M1 1l5 5 5-5' fill='none' stroke='%2364748b' stroke-width='1.8' stroke-linecap='round'/%3E%3C/svg%3E") no-repeat right 12px center;
+}
+
+.scan-group { display: flex; align-items: stretch; background: #fff; border: 1.5px solid var(--line); border-radius: 10px; overflow: hidden; }
+.scan-group input { flex: 1; min-width: 0; }
+.icon-btn { flex: none; width: 46px; display: grid; place-items: center; padding: 0; border: 0; border-left: 1px solid var(--hair); background: #f8fafc; color: var(--muted); }
+.icon-btn.sms  { background: #e8f0fe; color: var(--primary); }
+.icon-btn:active { filter: brightness(.94); }
+.save-badge { display: block; margin-top: 4px; font-size: 12px; font-weight: 700; color: var(--success); }
+
+/* empty state */
+.empty { text-align: center; padding: 48px 24px; color: var(--muted); }
+.empty .ic { width: 56px; height: 56px; margin: 0 auto 12px; color: #94a3b8; }
+.empty h2 { margin: 0 0 4px; font-size: 17px; color: var(--ink); }
+.empty p { margin: 0; font-size: 14px; }
+
+/* bottom bar */
+.bottom-actions {
+  position: fixed; left: 0; right: 0; bottom: 0; z-index: 90; background: #fff; border-top: 1px solid var(--hair);
+  display: grid; grid-template-columns: 1fr auto 1fr; align-items: center;
+  padding: 8px calc(20px + var(--sar)) calc(10px + var(--sab)) calc(20px + var(--sal));
+  transition: transform .18s ease;
+}
+body.kb .bottom-actions { transform: translateY(110%); }   /* get out of the way of the on-screen keyboard */
+.bar-btn { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 2px; min-height: 48px; background: none; border: 0; font-size: 12px; color: var(--muted); }
+.bar-btn.import .ic { color: var(--danger); } .bar-btn.export .ic { color: var(--success); }
+.btn-add-main { width: 60px; height: 60px; margin-top: -36px; display: grid; place-items: center; border-radius: 50%; color: #fff; background: var(--primary); border: 4px solid #fff; box-shadow: 0 4px 12px rgba(66,133,244,.35); }
+.btn-add-main .ic { width: 32px; height: 32px; }
+
+/* toast */
+.toast {
+  position: fixed; left: 50%; bottom: calc(96px + var(--sab)); z-index: 10000; max-width: min(92vw, 420px);
+  display: flex; align-items: center; gap: 14px; padding: 12px 16px; border-radius: 12px;
+  background: #202124; color: #fff; font-size: 14px; box-shadow: 0 6px 20px rgba(0,0,0,.3);
+  opacity: 0; transform: translate(-50%, 16px); pointer-events: none; transition: opacity .18s, transform .18s;
+}
+.toast.show { opacity: 1; transform: translate(-50%, 0); pointer-events: auto; }
+.toast button { min-height: 44px; padding: 0 6px; background: none; border: 0; color: #8ab4f8; font-weight: 800; }
+body.no-scroll .toast { bottom: auto; top: calc(14px + var(--sat)); }
+
+/* scanner */
+#scanner-overlay { display: none; position: fixed; inset: 0; z-index: 9999; background: #000; flex-direction: column; }
+#scanner-overlay.open { display: flex; }
+/* video is centred so the decode box (centre of the video) is also the centre of the screen */
+#reader-container { flex: 1; min-height: 0; display: flex; align-items: center; justify-content: center; overflow: hidden; background: #000; touch-action: none; }
+#reader { width: 100%; border: 0 !important; }
+.scanner-footer {
+  display: flex; flex-direction: column; align-items: center; gap: 14px; background: #fff; border-radius: 24px 24px 0 0;
+  padding: 18px calc(20px + var(--sar)) calc(18px + var(--sab)) calc(20px + var(--sal));
+}
+.scan-step { display: none; width: 100%; flex-direction: column; align-items: center; gap: 12px; }
+.scan-step.active-step { display: flex; }
+.scan-title { margin: 0; font-weight: 700; color: #1e293b; text-align: center; }
+.cam-row { display: flex; align-items: center; justify-content: center; gap: 20px; min-height: 48px; }
+.btn { min-height: 48px; padding: 0 26px; border: 0; border-radius: 30px; font-size: 15px; font-weight: 700; }
+.btn[disabled] { opacity: .65; }
+.btn-primary { background: var(--primary); color: #fff; } .btn-success { background: var(--success); color: #fff; }
+.btn-danger-soft { background: #fee2e2; color: var(--danger); } .btn-ghost { background: #f1f5f9; color: var(--ink); }
+.btn-text { background: none; color: var(--muted); }
+.snap { width: 64px; height: 64px; display: grid; place-items: center; border: 0; border-radius: 50%; color: #fff; background: var(--primary); box-shadow: 0 4px 10px rgba(66,133,244,.4); }
+.snap .ic { width: 32px; height: 32px; }
+.round-btn { width: 48px; height: 48px; display: grid; place-items: center; border: 0; border-radius: 50%; background: #f1f5f9; color: var(--ink); }
+.round-btn.on { background: #fde68a; color: #92400e; }
+.preview-container { width: 100%; max-width: 320px; height: 150px; display: flex; align-items: center; justify-content: center; overflow: hidden; background: #000; border: 2px solid var(--primary); border-radius: 8px; }
+#captured-img { max-width: 100%; max-height: 100%; object-fit: contain; }
+.result-box { text-align: center; font-size: 18px; font-weight: 700; color: var(--primary); background: #f1f5f9; border: 0; border-radius: 12px; padding: 14px; min-height: 52px; }
+.row { display: flex; gap: 10px; width: 100%; }
+
+@media (max-width: 340px) { .item-card { grid-template-columns: minmax(0, 1fr); } }
+@media (prefers-reduced-motion: reduce) { *, *::before, *::after { transition: none !important; scroll-behavior: auto !important; } }
+</style>
 </head>
 <body>
 
-<div class="top-dash">
-    <div>
-        <div style="font-size: 10px; font-weight: bold; color: #94a3b8;">YEARLY NET TOTAL</div>
-        <div class="inr-text" id="totalINR">₹0.00</div>
+<!-- Inline icon sprite (no external icon font needed) -->
+<svg width="0" height="0" style="position:absolute" aria-hidden="true" focusable="false">
+  <symbol id="i-close" viewBox="0 0 24 24"><path d="M19 6.41 17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/></symbol>
+  <symbol id="i-add" viewBox="0 0 24 24"><path d="M19 13h-6v6h-2v-6H5v-2h6V5h2v6h6v2z"/></symbol>
+  <symbol id="i-upload" viewBox="0 0 24 24"><path d="M9 16h6v-6h4l-7-7-7 7h4zM5 18h14v2H5z"/></symbol>
+  <symbol id="i-download" viewBox="0 0 24 24"><path d="M5 20h14v-2H5zM19 9h-4V3H9v6H5l7 7z"/></symbol>
+  <symbol id="i-camera" viewBox="0 0 24 24"><path d="M9 2 7.17 4H4c-1.1 0-2 .9-2 2v12c0 1.1.9 2 2 2h16c1.1 0 2-.9 2-2V6c0-1.1-.9-2-2-2h-3.17L15 2H9zm3 15c-2.76 0-5-2.24-5-5s2.24-5 5-5 5 2.24 5 5-2.24 5-5 5zm0-8a3 3 0 1 0 0 6 3 3 0 0 0 0-6z"/></symbol>
+  <symbol id="i-refresh" viewBox="0 0 24 24"><path d="M17.65 6.35A7.96 7.96 0 0 0 12 4c-4.42 0-7.99 3.58-7.99 8s3.57 8 7.99 8c3.73 0 6.84-2.55 7.73-6h-2.08A5.99 5.99 0 0 1 12 18c-3.31 0-6-2.69-6-6s2.69-6 6-6c1.66 0 3.14.69 4.22 1.78L13 11h7V4l-2.35 2.35z"/></symbol>
+  <symbol id="i-sms" viewBox="0 0 24 24"><path d="M20 2H4c-1.1 0-1.99.9-1.99 2L2 22l4-4h14c1.1 0 2-.9 2-2V4c0-1.1-.9-2-2-2zM9 11H7V9h2v2zm4 0h-2V9h2v2zm4 0h-2V9h2v2z"/></symbol>
+  <symbol id="i-copy" viewBox="0 0 24 24"><path d="M16 1H4c-1.1 0-2 .9-2 2v14h2V3h12V1zm3 4H8c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h11c1.1 0 2-.9 2-2V7c0-1.1-.9-2-2-2zm0 16H8V7h11v14z"/></symbol>
+  <symbol id="i-flash" viewBox="0 0 24 24"><path d="M7 2v11h3v9l7-12h-4l4-8z"/></symbol>
+  <symbol id="i-barcode" viewBox="0 0 24 24"><path d="M3 5h2v14H3zM7 5h1v14H7zM10 5h3v14h-3zM15 5h1v14h-1zM18 5h3v14h-3z"/></symbol>
+  <symbol id="i-qr" viewBox="0 0 24 24"><path d="M3 3h8v8H3zM5 5v4h4V5zM13 3h8v8h-8zM15 5v4h4V5zM3 13h8v8H3zM5 15v4h4v-4zM13 13h3v3h-3zM18 13h3v3h-3zM13 18h3v3h-3zM18 18h3v3h-3z"/></symbol>
+  <symbol id="i-card" viewBox="0 0 24 24"><rect x="3" y="5" width="18" height="14" rx="2.5" fill="none" stroke="currentColor" stroke-width="1.8"/><path d="M3 10h18M7 15h4" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></symbol>
+</svg>
+
+<header class="top-dash">
+  <div>
+    <div class="top-label" id="totalLabel">YEARLY NET TOTAL</div>
+    <div class="inr-text" id="totalINR" aria-live="polite">₹0.00</div>
+  </div>
+  <label class="sr-only" for="yearFilter">Year</label>
+  <select id="yearFilter"></select>
+</header>
+
+<main class="container">
+  <p class="backup-note" id="backupNote"></p>
+  <div id="expenseList"></div>
+  <div id="emptyState" class="empty" hidden>
+    <svg class="ic" aria-hidden="true"><use href="#i-card"/></svg>
+    <h2 id="emptyTitle"></h2>
+    <p id="emptyHint"></p>
+  </div>
+</main>
+
+<!-- One card. Built with DOM APIs (never innerHTML + user data) so scanned/imported text can't inject markup. -->
+<template id="card-tpl">
+  <article class="item-card">
+    <button type="button" class="btn-del" data-act="delete" aria-label="Delete this card"><svg class="ic" aria-hidden="true"><use href="#i-close"/></svg></button>
+
+    <div class="field"><label>Date</label>
+      <input type="date" class="price-input" data-f="date"></div>
+    <div class="field"><label>Price (₹)</label>
+      <input type="number" class="price-input" data-f="price" inputmode="decimal" step="any" min="0" placeholder="0" autocomplete="off"></div>
+
+    <div class="field full-width"><label>Gift card</label>
+      <select class="price-input" data-f="item">
+        <option value="Amazon">Amazon</option><option value="Flipkart">Flipkart</option>
+        <option value="Bigbasket">BigBasket</option><option value="Zepto">Zepto</option>
+        <option value="Swiggy">Swiggy</option><option value="Dominos">Domino's</option>
+      </select></div>
+
+    <div class="field full-width"><label>Ref ID (barcode)</label>
+      <div class="scan-group">
+        <input type="text" data-f="ref" autocomplete="off" autocapitalize="off" autocorrect="off" spellcheck="false" enterkeyhint="done">
+        <button type="button" class="icon-btn" data-act="scan" data-mode="ref" aria-label="Scan barcode"><svg class="ic" aria-hidden="true"><use href="#i-barcode"/></svg></button>
+      </div></div>
+
+    <div class="field full-width"><label>Gift code (read from photo)</label>
+      <div class="scan-group">
+        <input type="text" data-f="gc" autocomplete="off" autocapitalize="characters" autocorrect="off" spellcheck="false" enterkeyhint="done">
+        <button type="button" class="icon-btn" data-act="copy" aria-label="Copy gift code"><svg class="ic" aria-hidden="true"><use href="#i-copy"/></svg></button>
+        <button type="button" class="icon-btn" data-act="scan" data-mode="gc" aria-label="Read gift code with camera"><svg class="ic" aria-hidden="true"><use href="#i-camera"/></svg></button>
+      </div></div>
+
+    <div class="field full-width"><label>Activation (QR)</label>
+      <div class="scan-group">
+        <input type="text" data-f="act" autocomplete="off" autocapitalize="off" autocorrect="off" spellcheck="false" enterkeyhint="done">
+        <button type="button" class="icon-btn" data-act="scan" data-mode="act" aria-label="Scan activation QR code"><svg class="ic" aria-hidden="true"><use href="#i-qr"/></svg></button>
+        <button type="button" class="icon-btn sms" data-act="sms" aria-label="Send activation code by SMS"><svg class="ic" aria-hidden="true"><use href="#i-sms"/></svg></button>
+      </div></div>
+
+    <div class="field"><label>Discount (% or ₹)</label>
+      <input type="text" class="price-input" data-f="disc" placeholder="e.g. 5% or 50" autocomplete="off" autocapitalize="off" autocorrect="off" spellcheck="false"></div>
+    <div class="field"><label>Net (₹)</label>
+      <input type="text" class="price-input" data-f="net" readonly tabindex="-1">
+      <span class="save-badge d-save">Save: ₹0.00</span></div>
+
+    <div class="field full-width"><label>Redeemed</label>
+      <select class="price-input" data-f="status"><option value="No">No</option><option value="Yes">Yes</option></select></div>
+  </article>
+</template>
+
+<!-- Scanner -->
+<div id="scanner-overlay" role="dialog" aria-modal="true" aria-label="Scanner">
+  <div id="reader-container"><div id="reader"></div></div>
+
+  <div class="scanner-footer">
+    <div id="step-1" class="scan-step active-step">
+      <p id="scan-hint" class="scan-title" role="status">Starting camera…</p>
+      <div class="cam-row">
+        <button type="button" id="btn-torch" class="round-btn" hidden aria-label="Flashlight" aria-pressed="false"><svg class="ic" aria-hidden="true"><use href="#i-flash"/></svg></button>
+        <button type="button" id="btn-snap" class="snap" hidden aria-label="Take picture of the code"><svg class="ic" aria-hidden="true"><use href="#i-camera"/></svg></button>
+      </div>
+      <button type="button" id="btn-photo" class="btn btn-primary" hidden>Take a photo instead</button>
+      <button type="button" id="btn-close" class="btn btn-danger-soft">Close camera</button>
     </div>
-    <select id="yearFilter" onchange="refresh()"></select>
-</div>
 
-<div class="container" id="expenseList"></div>
-
-<div id="scanner-overlay">
-    <div id="reader-container">
-        <div id="reader"></div>
-        <div id="scanner-ui-layer">
-            <div id="scan-window" class="scan-window"></div>
-        </div>
+    <div id="step-2" class="scan-step">
+      <p class="scan-title">Check the photo</p>
+      <div class="preview-container"><img id="captured-img" alt="Captured gift code"></div>
+      <div class="row">
+        <button type="button" id="btn-process" class="btn btn-primary" style="flex:2">Read code</button>
+        <button type="button" id="btn-retake-2" class="btn btn-ghost" style="flex:1" aria-label="Retake"><svg class="ic" style="margin:auto" aria-hidden="true"><use href="#i-refresh"/></svg></button>
+      </div>
     </div>
-    
-    <div class="scanner-footer">
-        <div id="step-1" class="scan-step active-step">
-            <span id="scan-hint" style="font-weight: 700; color: #1e293b;">Aligning Camera...</span>
-            <div id="btn-snap" onclick="manualSnap()" style="width:64px; height:64px; background:var(--primary); border-radius:50%; display:none; align-items:center; justify-content:center; color:white; box-shadow: 0 4px 10px rgba(66,133,244,0.4);">
-                <i class="material-icons-round" style="font-size:32px">photo_camera</i>
-            </div>
-            <button onclick="stopScanner()" style="background:#fee2e2; border:none; color:var(--danger); padding:12px 30px; border-radius:30px; font-weight:800; font-size:14px;">CLOSE CAMERA</button>
-        </div>
 
-        <div id="step-2" class="scan-step">
-            <span style="font-weight: 700;">Captured Preview</span>
-            <div class="preview-container"><canvas id="hidden-canvas" style="display:none;"></canvas><img id="captured-img" src=""></div>
-            <div style="display:flex; gap:10px; width:100%;">
-                <button onclick="processPreview()" id="btn-process" style="background:var(--primary); color:white; flex:2; border:none; padding:16px; border-radius:30px; font-weight:bold;">PROCESS CODE</button>
-                <button onclick="retakePhoto()" style="background:#f1f5f9; flex:1; border:none; border-radius:30px;"><i class="material-icons-round">refresh</i></button>
-            </div>
-        </div>
-
-        <div id="step-3" class="scan-step">
-            <span style="font-weight: 700;">Confirm Data</span>
-            <input type="text" id="final-code" class="result-box">
-            <button onclick="confirmToUI()" style="width:100%; background:var(--success); color:white; border:none; padding:16px; border-radius:30px; font-weight:bold;">CONFIRM & SAVE</button>
-            <button onclick="retakePhoto()" style="background:none; border:none; color:#64748b; font-weight:bold; margin-top:5px;">RETAKE SCAN</button>
-        </div>
+    <div id="step-3" class="scan-step">
+      <p class="scan-title">Check the code</p>
+      <input type="text" id="final-code" class="result-box" autocomplete="off" autocapitalize="off" autocorrect="off" spellcheck="false" enterkeyhint="done" aria-label="Scanned code">
+      <button type="button" id="btn-confirm" class="btn btn-success" style="width:100%">Confirm &amp; save</button>
+      <button type="button" id="btn-retake-3" class="btn btn-text">Scan again</button>
     </div>
+  </div>
 </div>
+<!-- Fallback when the live camera is blocked or unavailable (works on any iOS/Android browser, even over http) -->
+<input type="file" id="photoInput" accept="image/*" capture="environment" hidden>
 
-<div class="bottom-actions">
-    <div onclick="document.getElementById('importFile').click()" style="text-align:center; color:#64748b; font-size:11px;"><i class="material-icons-round" style="color:var(--danger)">file_upload</i><br>Import</div>
-    <div class="btn-add-main" onclick="addNew()"><i class="material-icons-round" style="font-size:32px">add</i></div>
-    <div onclick="exportData()" style="text-align:center; color:#64748b; font-size:11px;"><i class="material-icons-round" style="color:var(--success)">file_download</i><br>Export</div>
-</div>
-<input type="file" id="importFile" hidden onchange="importData(event)">
+<nav class="bottom-actions" aria-label="Actions">
+  <button type="button" class="bar-btn import" id="btn-import"><svg class="ic" aria-hidden="true"><use href="#i-upload"/></svg>Import</button>
+  <button type="button" class="btn-add-main" id="btn-add" aria-label="Add gift card"><svg class="ic" aria-hidden="true"><use href="#i-add"/></svg></button>
+  <button type="button" class="bar-btn export" id="btn-export"><svg class="ic" aria-hidden="true"><use href="#i-download"/></svg>Export</button>
+</nav>
+<input type="file" id="importFile" accept="application/json,.json,text/plain" hidden>
+
+<div id="toast" class="toast" role="status" aria-live="polite"><span id="toastMsg"></span><button type="button" id="toastAction" hidden></button></div>
 
 <script>
-    const DB_KEY = "Tracker_Final_Stable_V5";
-    let html5QrCode = null, activeInput = null, currentMode = '', worker = null, tempScannedText = "";
+(() => {
+'use strict';
 
-    function init() {
-        try {
-            const saved = JSON.parse(localStorage.getItem(DB_KEY)) || [];
-            const cy = new Date().getFullYear(), yf = document.getElementById('yearFilter');
-            for(let i=cy-2; i<=cy+1; i++){
-                let o = document.createElement('option'); o.value=i; o.innerText=i;
-                if(i===cy) o.selected=true; yf.appendChild(o);
-            }
-            if(saved.length === 0) addNew(); else saved.forEach(s => addNew(s));
-            refresh();
-        } catch (e) { console.error("Init Error", e); }
+/* ================= constants & helpers ================= */
+const DB_KEY = 'Tracker_Final_Stable_V5';          // unchanged: existing data and backups keep working
+const BACKUP_KEY = DB_KEY + '_lastBackup';
+const FIELDS = ['date', 'item', 'ref', 'price', 'disc', 'gc', 'act', 'status'];
+// Loaded only when the scanner is first opened, exact versions pinned, with a mirror as fallback.
+const LIBS = {
+  qr:  ['https://unpkg.com/html5-qrcode@2.3.8/html5-qrcode.min.js',
+        'https://cdn.jsdelivr.net/npm/html5-qrcode@2.3.8/html5-qrcode.min.js',
+        'https://unpkg.com/html5-qrcode'],
+  ocr: ['https://cdn.jsdelivr.net/npm/tesseract.js@5.1.1/dist/tesseract.min.js',
+        'https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js']
+};
+
+const $ = (s, r = document) => r.querySelector(s);
+const list = $('#expenseList'), yearSel = $('#yearFilter'), totalEl = $('#totalINR'), totalLabel = $('#totalLabel');
+const emptyEl = $('#emptyState'), emptyTitle = $('#emptyTitle'), emptyHint = $('#emptyHint'), backupNote = $('#backupNote');
+const reduceMotion = matchMedia('(prefers-reduced-motion: reduce)').matches;
+const isIOS = /iP(hone|ad|od)/.test(navigator.userAgent) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
+
+const pad = n => String(n).padStart(2, '0');
+const todayStr = () => { const d = new Date(); return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`; }; // local date (toISOString is UTC and wrong near midnight in IST)
+const num = v => { const n = parseFloat(String(v).replace(/,/g, '')); return isFinite(n) ? n : 0; };
+const money = n => '₹' + n.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+
+/* ================= toast ================= */
+const toastEl = $('#toast'), toastMsg = $('#toastMsg'), toastBtn = $('#toastAction');
+let toastTimer = 0, toastAct = null;
+function toast(msg, opts = {}) {
+  toastMsg.textContent = msg;
+  toastAct = opts.action ? opts.onAction : null;
+  toastBtn.hidden = !opts.action;
+  toastBtn.textContent = opts.action || '';
+  toastEl.classList.add('show');
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(hideToast, opts.duration || 3500);
+}
+function hideToast() { toastEl.classList.remove('show'); toastAct = null; }
+toastBtn.addEventListener('click', () => { const f = toastAct; hideToast(); if (f) f(); });
+
+/* ================= data: validate, read, write ================= */
+const STR = (v, max) => (typeof v === 'string' || typeof v === 'number') ? String(v).slice(0, max) : '';
+function cleanEntry(x) {
+  if (!x || typeof x !== 'object') return null;
+  const p = STR(x.price, 20).trim();
+  return {
+    date: /^\d{4}-\d{2}-\d{2}$/.test(x.date) ? x.date : '',
+    item: STR(x.item, 40) || 'Amazon',
+    ref: STR(x.ref, 500),
+    price: (p !== '' && isFinite(parseFloat(p)) && parseFloat(p) >= 0) ? p : '',
+    disc: STR(x.disc, 20),
+    gc: STR(x.gc, 500),
+    act: STR(x.act, 2000),
+    status: x.status === 'Yes' ? 'Yes' : 'No'
+  };
+}
+function cleanList(a) {
+  if (!Array.isArray(a)) throw new Error('Not a list');
+  return a.map(cleanEntry).filter(Boolean).slice(0, 5000);
+}
+
+const fld = (card, k) => card.querySelector(`[data-f="${k}"]`);
+function readCard(card) { const o = {}; FIELDS.forEach(k => { o[k] = fld(card, k).value; }); return o; }
+function fillCard(card, d) {
+  FIELDS.forEach(k => {
+    const el = fld(card, k);
+    if (k === 'item' && d.item && ![...el.options].some(o => o.value === d.item)) el.add(new Option(d.item, d.item)); // keep unknown retailers instead of turning them into Amazon
+    el.value = d[k] == null ? '' : d[k];
+  });
+}
+let uid = 0;
+function createCard(d) {
+  const card = $('#card-tpl').content.firstElementChild.cloneNode(true);
+  const n = ++uid;
+  card.querySelectorAll('.field').forEach(f => {   // associate every label with its control
+    const c = f.querySelector('[data-f]'), l = f.querySelector('label');
+    if (c && l) { c.id = `f${n}-${c.dataset.f}`; l.htmlFor = c.id; }
+  });
+  fillCard(card, d);
+  return card;
+}
+const readAll = () => [...list.querySelectorAll('.item-card')].map(readCard);
+
+let saveTimer = 0, warnedSave = false;
+function saveNow() {
+  clearTimeout(saveTimer); saveTimer = 0;
+  try { localStorage.setItem(DB_KEY, JSON.stringify(readAll())); }
+  catch (e) { if (!warnedSave) { warnedSave = true; toast('Couldn’t save on this device. Export a backup now.', { duration: 6000 }); } }
+}
+const scheduleSave = () => { clearTimeout(saveTimer); saveTimer = setTimeout(saveNow, 300); };
+const flushSave = () => { if (saveTimer) saveNow(); };
+
+function loadSaved() {
+  let raw = null;
+  try { raw = localStorage.getItem(DB_KEY); } catch (e) { return []; }
+  if (!raw) return [];
+  try { return cleanList(JSON.parse(raw)); }
+  catch (e) {
+    try { localStorage.setItem(DB_KEY + '_corrupt', raw); } catch (_) {}   // never overwrite damaged data without keeping a copy
+    toast('Saved data looked damaged. A copy was kept.', { duration: 6000 });
+    return [];
+  }
+}
+
+/* ================= calculations & rendering ================= */
+function parseDisc(raw, price) {
+  const s = String(raw || '').replace(/[₹,\s]/g, '').replace(/^rs\.?/i, '');
+  if (!s) return 0;
+  const v = s.endsWith('%') ? price * (parseFloat(s) || 0) / 100 : (parseFloat(s) || 0);
+  return Math.min(Math.max(v, 0), price);           // never negative, never more than the price
+}
+
+function rebuildYears(want) {
+  const cy = new Date().getFullYear(), ys = new Set([cy - 2, cy - 1, cy, cy + 1]);
+  list.querySelectorAll('[data-f="date"]').forEach(i => { if (/^\d{4}/.test(i.value)) ys.add(+i.value.slice(0, 4)); }); // years found in data are always reachable
+  const keep = String(want || yearSel.value || cy);
+  yearSel.innerHTML = '';
+  [...ys].sort((a, b) => b - a).forEach(y => yearSel.add(new Option(y, y)));
+  yearSel.add(new Option('All', 'all'));
+  yearSel.value = [...yearSel.options].some(o => o.value === keep) ? keep : String(cy);
+}
+
+function updateBackupNote() {
+  let t = 0; try { t = +localStorage.getItem(BACKUP_KEY) || 0; } catch (e) {}
+  const has = list.children.length > 0;
+  let text = 'Stored on this device only. Last backup: ', warn = false;
+  if (!t) { text += 'never'; warn = has; }
+  else {
+    const days = Math.floor((Date.now() - t) / 864e5);
+    text += days <= 0 ? 'today' : days === 1 ? 'yesterday' : `${days} days ago`;
+    warn = has && days >= 14;
+  }
+  backupNote.textContent = text; backupNote.classList.toggle('warn', warn);
+}
+
+function refresh() {
+  const year = yearSel.value;
+  let total = 0, shown = 0;
+  list.querySelectorAll('.item-card').forEach(card => {
+    const price = num(fld(card, 'price').value);
+    const saved = parseDisc(fld(card, 'disc').value, price);
+    const net = Math.round((price - saved) * 100) / 100;
+    fld(card, 'net').value = net.toFixed(2);
+    card.querySelector('.d-save').textContent = `Save: ${money(saved)}`;
+    card.classList.toggle('redeemed', fld(card, 'status').value === 'Yes');
+    const dt = fld(card, 'date').value;
+    const show = year === 'all' || !dt || dt.startsWith(year);   // undated cards stay visible so they're never lost
+    card.hidden = !show;
+    if (show) { total += net; shown++; }
+  });
+  totalEl.textContent = money(total);
+  totalLabel.textContent = year === 'all' ? 'NET TOTAL (ALL YEARS)' : 'YEARLY NET TOTAL';
+  emptyEl.hidden = shown > 0;
+  if (!shown) {
+    if (!list.children.length) { emptyTitle.textContent = 'No gift cards yet'; emptyHint.textContent = 'Tap + to add one, or import a backup.'; }
+    else { emptyTitle.textContent = `No cards in ${year}`; emptyHint.textContent = 'Tap + to add one, or pick another year.'; }
+  }
+  updateBackupNote();
+}
+
+function renderAll(data) {
+  list.textContent = '';
+  const frag = document.createDocumentFragment();
+  data.forEach(d => frag.appendChild(createCard(d)));
+  list.appendChild(frag);
+  rebuildYears();
+  refresh();
+}
+
+/* ================= card actions ================= */
+function addNew() {
+  const d = cleanEntry({ date: todayStr() });
+  const card = createCard(d);
+  list.appendChild(card);
+  if (yearSel.value !== 'all' && yearSel.value !== d.date.slice(0, 4)) rebuildYears(d.date.slice(0, 4));
+  refresh(); scheduleSave();
+  requestAnimationFrame(() => card.scrollIntoView({ behavior: reduceMotion ? 'auto' : 'smooth', block: 'center' }));
+}
+
+function deleteCard(card) {
+  const data = readCard(card), next = card.nextElementSibling;
+  card.remove(); saveNow(); refresh();
+  toast('Card deleted', { action: 'Undo', duration: 6000, onAction() {
+    const c = createCard(data);
+    if (next && next.parentNode === list) list.insertBefore(c, next); else list.appendChild(c);
+    rebuildYears(); saveNow(); refresh();
+  } });
+}
+
+function sendSMS(card) {
+  const val = fld(card, 'act').value.trim();
+  if (!val) return toast('Scan the activation QR first.');
+  location.href = `sms:${isIOS ? '&' : '?'}body=${encodeURIComponent(val)}`;   // iOS needs "&", Android needs "?"
+}
+
+async function copyCode(input) {
+  const v = input.value.trim();
+  if (!v) return toast('No gift code to copy yet.');
+  try { await navigator.clipboard.writeText(v); toast('Gift code copied.'); return; } catch (e) {}
+  try { input.focus(); input.select(); input.setSelectionRange(0, 9999); if (document.execCommand('copy')) return toast('Gift code copied.'); } catch (e) {}
+  toast('Couldn’t copy. Press and hold the code to copy it.');
+}
+
+function onEdit(e) {
+  const el = e.target;
+  if (!el.matches || !el.matches('[data-f]')) return;
+  const k = el.dataset.f;
+  if (k === 'date' && e.type === 'change' && el.value && yearSel.value !== 'all' && yearSel.value !== el.value.slice(0, 4)) {
+    rebuildYears(el.value.slice(0, 4));               // follow the card instead of making it vanish while editing
+    toast(`Showing ${yearSel.value}`);
+  }
+  if (k === 'date' || k === 'price' || k === 'disc' || k === 'status') refresh();
+  scheduleSave();
+}
+list.addEventListener('input', onEdit);
+list.addEventListener('change', onEdit);
+list.addEventListener('click', e => {
+  const b = e.target.closest('button[data-act]');
+  if (!b) return;
+  const card = b.closest('.item-card'), act = b.dataset.act, input = b.parentElement.querySelector('input');
+  if (act === 'delete') deleteCard(card);
+  else if (act === 'scan') startScan(input, b.dataset.mode);
+  else if (act === 'sms') sendSMS(card);
+  else if (act === 'copy') copyCode(input);
+});
+yearSel.addEventListener('change', refresh);
+$('#btn-add').addEventListener('click', addNew);
+
+/* ================= export / import ================= */
+async function exportData() {
+  flushSave();
+  const cards = readAll();
+  if (!cards.length) return toast('Nothing to export yet.');
+  const json = JSON.stringify(cards, null, 2), name = `GiftCard_Backup_${todayStr()}.json`;
+  const done = () => { try { localStorage.setItem(BACKUP_KEY, String(Date.now())); } catch (e) {} updateBackupNote(); toast('Backup ready.'); };
+  let file = null; try { file = new File([json], name, { type: 'application/json' }); } catch (e) {}
+
+  // 1) Phones/tablets: native share sheet ("Save to Files", Drive, WhatsApp, …). Must run inside the tap.
+  if (file && matchMedia('(pointer: coarse)').matches && navigator.canShare && navigator.canShare({ files: [file] })) {
+    try { await navigator.share({ files: [file], title: 'Gift card backup' }); return done(); }
+    catch (err) { if (err && err.name === 'AbortError') return; }
+  }
+  // 2) Desktop Chromium: save dialog
+  if ('showSaveFilePicker' in window) {
+    try {
+      const h = await window.showSaveFilePicker({ suggestedName: name, types: [{ description: 'JSON Data', accept: { 'application/json': ['.json'] } }] });
+      const w = await h.createWritable(); await w.write(json); await w.close(); return done();
+    } catch (err) { if (err && err.name === 'AbortError') return; }
+  }
+  // 3) Plain download (no filename prompt)
+  const url = URL.createObjectURL(new Blob([json], { type: 'application/json' }));
+  const a = document.createElement('a'); a.href = url; a.download = name;
+  document.body.appendChild(a); a.click();
+  setTimeout(() => { a.remove(); URL.revokeObjectURL(url); }, 1000);
+  done();
+}
+
+function importData(ev) {
+  const f = ev.target.files && ev.target.files[0];
+  ev.target.value = '';                               // allows re-importing the same file
+  if (!f) return;
+  if (f.size > 5 * 1024 * 1024) return toast('That file is too large to be a backup.');
+  const r = new FileReader();
+  r.onerror = () => toast('Couldn’t read that file.');
+  r.onload = () => {
+    let incoming;
+    try { incoming = cleanList(JSON.parse(r.result)); } catch (e) { return toast('That isn’t a valid backup file.'); }
+    const before = readAll();
+    if (before.length && !confirm(`Replace the ${before.length} card${before.length === 1 ? '' : 's'} on this device with ${incoming.length} from this file?`)) return;
+    renderAll(incoming); saveNow();
+    toast(`Imported ${incoming.length} card${incoming.length === 1 ? '' : 's'}`, { action: 'Undo', duration: 8000, onAction() { renderAll(before); saveNow(); } });
+  };
+  r.readAsText(f);
+}
+$('#btn-export').addEventListener('click', exportData);
+$('#btn-import').addEventListener('click', () => $('#importFile').click());
+$('#importFile').addEventListener('change', importData);
+
+/* ================= scanner ================= */
+const ov = $('#scanner-overlay'), hint = $('#scan-hint'), finalCode = $('#final-code');
+const snapBtn = $('#btn-snap'), torchBtn = $('#btn-torch'), photoBtn = $('#btn-photo'), procBtn = $('#btn-process'), preview = $('#captured-img');
+const SC = { qr: null, mode: '', input: null, token: 0, ocrToken: 0, handled: false, box: { w: 0, h: 0 }, torch: null,
+             worker: null, workerP: null, workerTimer: 0, hist: false, canvas: document.createElement('canvas') };
+const overlayOpen = () => ov.classList.contains('open');
+const setHint = t => { hint.textContent = t; };
+function changeStep(s) {
+  document.querySelectorAll('.scan-step').forEach(el => el.classList.remove('active-step'));
+  $('#step-' + s).classList.add('active-step');
+}
+
+/* --- load libraries on demand (page works instantly and offline; scanning needs the network the first time) --- */
+const libP = {};
+const libReady = k => k === 'qr' ? !!window.Html5Qrcode : !!window.Tesseract;
+function loadFrom(urls) {
+  return urls.reduce((p, u) => p.catch(() => new Promise((res, rej) => {
+    const s = document.createElement('script'); s.src = u; s.async = true;
+    s.onload = res; s.onerror = () => { s.remove(); rej(new Error('load failed')); };
+    document.head.appendChild(s);
+  })), Promise.reject());
+}
+function ensureLib(k) {
+  if (libReady(k)) return Promise.resolve();
+  return libP[k] || (libP[k] = loadFrom(LIBS[k]).then(() => { if (!libReady(k)) throw new Error('missing'); }).catch(e => { delete libP[k]; throw e; }));
+}
+
+/* --- overlay open/close, incl. Android back button / iOS swipe-back --- */
+function openOverlay() {
+  ov.classList.add('open'); document.body.classList.add('no-scroll'); changeStep(1);
+  if (!SC.hist) { try { history.pushState({ scanner: 1 }, ''); SC.hist = true; } catch (e) {} }
+}
+function closeOverlay(fromPop) {
+  ov.classList.remove('open'); document.body.classList.remove('no-scroll');
+  if (SC.hist) { SC.hist = false; if (!fromPop) try { history.back(); } catch (e) {} }
+}
+window.addEventListener('popstate', () => { if (overlayOpen()) { SC.hist = false; stopScanner(true); } });
+
+async function cleanupCamera() {
+  const q = SC.qr; SC.qr = null; SC.torch = null;
+  if (q) {
+    try { if (q.isScanning) await q.stop(); } catch (e) {}
+    try { q.clear(); } catch (e) {}
+  }
+  $('#reader').textContent = '';
+}
+async function stopScanner(fromPop) {
+  SC.token++; SC.ocrToken++;                          // cancels any start/OCR still in flight
+  closeOverlay(fromPop);
+  await cleanupCamera();
+}
+
+function camProblem(msg) {
+  setHint(msg); snapBtn.hidden = true; torchBtn.hidden = true;
+  photoBtn.hidden = false; photoBtn.className = 'btn btn-primary';   // camera failed: make the alternative the main action
+}
+function explain(err) {
+  const s = typeof err === 'string' ? err : `${err && err.name} ${err && err.message}`;
+  if (/NotAllowed|Permission|denied/i.test(s)) return 'Camera access is blocked. Allow the camera for this page in your browser or phone settings, or take a photo instead.';
+  if (/NotFound|no camera|Requested device/i.test(s)) return 'No camera was found. You can take a photo instead.';
+  if (/NotReadable|in use|Could not start/i.test(s)) return 'The camera is busy in another app. Close it and try again, or take a photo instead.';
+  return 'The camera couldn’t start. You can take a photo instead.';
+}
+const isPermission = e => /NotAllowed|Permission|denied/i.test(typeof e === 'string' ? e : `${e && e.name} ${e && e.message}`);
+
+async function startScan(input, mode) {
+  SC.input = input; SC.mode = mode; SC.handled = false; SC.text = '';
+  const token = ++SC.token; SC.ocrToken++;
+  openOverlay();
+  snapBtn.hidden = true; torchBtn.hidden = true; photoBtn.hidden = true;
+  setHint('Starting camera…');
+  await cleanupCamera();
+  if (token !== SC.token) return;
+  try { await ensureLib('qr'); }
+  catch (e) { if (token === SC.token) camProblem('The scanner couldn’t load. Check your internet connection, or take a photo instead.'); return; }
+  if (token !== SC.token) return;
+  if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia)
+    return camProblem(window.isSecureContext ? 'This browser can’t open the camera. You can take a photo instead.' : 'Live camera needs a secure (https) page. You can take a photo instead.');
+  try { await launch(mode, token); }
+  catch (err) { if (token === SC.token) { await cleanupCamera(); camProblem(explain(err)); } }
+}
+
+async function launch(mode, token) {
+  const isQR = mode === 'act', isOCR = mode === 'gc';
+  // One source of truth: the size the library decodes is the same size we crop for OCR.
+  const qrbox = (vw, vh) => {
+    let w, h;
+    if (isQR) w = h = Math.floor(Math.min(vw, vh) * 0.7);
+    else if (isOCR) { w = Math.floor(Math.min(vw * 0.9, 420)); h = Math.floor(w / 3.2); }
+    else { w = Math.floor(Math.min(vw * 0.9, 380)); h = Math.floor(w * 0.36); }
+    w = Math.max(60, Math.min(w, vw - 4)); h = Math.max(60, Math.min(h, vh - 4));
+    SC.box = { w, h };
+    return { width: w, height: h };
+  };
+  const cfg = {
+    fps: isOCR ? 5 : 10, qrbox, disableFlip: true,
+    videoConstraints: { facingMode: 'environment', width: { ideal: 1280 }, height: { ideal: 720 } }   // iOS defaults to 640x480
+  };
+  const make = () => new Html5Qrcode('reader', { verbose: false, useBarCodeDetectorIfSupported: true, experimentalFeatures: { useBarCodeDetectorIfSupported: true } });
+  const onDecode = txt => {
+    if (SC.handled || isOCR) return;
+    SC.handled = true; SC.text = txt;
+    if (navigator.vibrate) navigator.vibrate(40);
+    try { SC.qr && SC.qr.pause(true); } catch (e) {}
+    finalCode.value = txt; changeStep(3);            // decoded text is already known: skip the photo preview step
+  };
+
+  SC.qr = make();
+  try { await SC.qr.start({ facingMode: 'environment' }, cfg, onDecode, () => {}); }
+  catch (e) {
+    if (isPermission(e) || token !== SC.token) throw e;
+    await cleanupCamera(); if (token !== SC.token) return;
+    delete cfg.videoConstraints;                       // retry with library defaults
+    SC.qr = make();
+    await SC.qr.start({ facingMode: 'environment' }, cfg, onDecode, () => {});
+  }
+  if (token !== SC.token) { await cleanupCamera(); return; }
+
+  setHint(isQR ? 'Center the QR code in the box' : isOCR ? 'Line up the gift code, then tap the camera' : 'Center the barcode in the box');
+  snapBtn.hidden = !isOCR;
+  photoBtn.hidden = false; photoBtn.className = 'btn btn-text';       // always available, but quiet while the camera works
+  try {                                                // flashlight (Android Chrome; not offered on iOS Safari)
+    const t = SC.qr.getRunningTrackCameraCapabilities().torchFeature();
+    if (t.isSupported()) { SC.torch = t; torchBtn.hidden = false; torchBtn.classList.remove('on'); torchBtn.setAttribute('aria-pressed', 'false'); }
+  } catch (e) {}
+}
+
+torchBtn.addEventListener('click', async () => {
+  if (!SC.torch) return;
+  try { const on = !SC.torch.value(); await SC.torch.apply(on); torchBtn.classList.toggle('on', on); torchBtn.setAttribute('aria-pressed', String(on)); }
+  catch (e) { toast('Flashlight isn’t available.'); }
+});
+
+/* --- capture the region the user framed (same box + same centre the library decodes) --- */
+function captureFrame() {
+  const video = $('#reader video');
+  if (!video || !video.videoWidth || !video.clientWidth) return false;
+  const sx = video.videoWidth / video.clientWidth, sy = video.videoHeight / video.clientHeight;
+  let cw = SC.box.w * sx, ch = SC.box.h * sy;
+  cw = Math.min(cw, video.videoWidth); ch = Math.min(ch, video.videoHeight);
+  const x = (video.videoWidth - cw) / 2, y = (video.videoHeight - ch) / 2;
+  const outW = Math.min(1200, Math.max(800, Math.round(cw)));           // upscale small crops for better OCR
+  SC.canvas.width = outW; SC.canvas.height = Math.round(outW * ch / cw);
+  SC.canvas.getContext('2d').drawImage(video, x, y, cw, ch, 0, 0, SC.canvas.width, SC.canvas.height);
+  preview.src = SC.canvas.toDataURL('image/jpeg', 0.9);
+  return true;
+}
+snapBtn.addEventListener('click', () => {
+  if (!SC.qr || !captureFrame()) return toast('Camera isn’t ready yet.');
+  try { SC.qr.pause(true); } catch (e) {}
+  changeStep(2);
+});
+
+/* --- OCR --- */
+function preprocess(canvas) {                          // grayscale + contrast stretch helps Tesseract on glossy cards
+  const ctx = canvas.getContext('2d'), img = ctx.getImageData(0, 0, canvas.width, canvas.height), d = img.data;
+  const g = new Uint8ClampedArray(d.length / 4); let min = 255, max = 0;
+  for (let i = 0, j = 0; i < d.length; i += 4, j++) { const v = (0.299 * d[i] + 0.587 * d[i + 1] + 0.114 * d[i + 2]) | 0; g[j] = v; if (v < min) min = v; if (v > max) max = v; }
+  const range = Math.max(1, max - min);
+  for (let i = 0, j = 0; i < d.length; i += 4, j++) { const v = ((g[j] - min) * 255 / range) | 0; d[i] = d[i + 1] = d[i + 2] = v; }
+  ctx.putImageData(img, 0, 0);
+}
+async function getWorker(onProgress) {
+  await ensureLib('ocr');
+  if (SC.worker) return SC.worker;
+  if (!SC.workerP) SC.workerP = (async () => {
+    const w = await Tesseract.createWorker('eng', 1, { logger: m => onProgress && onProgress(m) });
+    await w.setParameters({ tessedit_char_whitelist: 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789-', tessedit_pageseg_mode: '6' });
+    SC.worker = w; return w;
+  })().finally(() => { SC.workerP = null; });
+  return SC.workerP;
+}
+function scheduleWorkerStop() {                        // free ~100 MB of memory on phones when idle
+  clearTimeout(SC.workerTimer);
+  SC.workerTimer = setTimeout(() => { const w = SC.worker; SC.worker = null; if (w) Promise.resolve(w.terminate()).catch(() => {}); }, 60000);
+}
+const cleanCode = t => String(t || '').toUpperCase().replace(/[^A-Z0-9-]/g, '').replace(/-{2,}/g, '-');
+
+async function processPreview() {
+  const t = ++SC.ocrToken;
+  procBtn.disabled = true; procBtn.textContent = 'Loading reader…';
+  let text = '', failed = false;
+  try {
+    const w = await getWorker(m => { if (t === SC.ocrToken && m && m.status === 'recognizing text') procBtn.textContent = `Reading… ${Math.round((m.progress || 0) * 100)}%`; });
+    if (t !== SC.ocrToken) return;
+    preprocess(SC.canvas);
+    ({ data: { text } } = await w.recognize(SC.canvas));
+    scheduleWorkerStop();
+  } catch (e) { failed = true; }
+  if (t !== SC.ocrToken) return;                       // user retook or closed while reading
+  procBtn.disabled = false; procBtn.textContent = 'Read code';
+  finalCode.value = failed ? '' : cleanCode(text);
+  if (failed) toast('Couldn’t read the code. The reader needs internet the first time. Type it in instead.', { duration: 6000 });
+  else if (!finalCode.value) toast('No code found. Scan again or type it in.');
+  changeStep(3);
+}
+procBtn.addEventListener('click', processPreview);
+
+/* --- photo fallback (works even when live camera is blocked or the page isn't https) --- */
+function loadImage(file) {
+  return new Promise((res, rej) => {
+    const url = URL.createObjectURL(file), img = new Image();
+    img.onload = () => { URL.revokeObjectURL(url); res(img); };
+    img.onerror = () => { URL.revokeObjectURL(url); rej(new Error('image')); };
+    img.src = url;
+  });
+}
+photoBtn.addEventListener('click', () => $('#photoInput').click());
+$('#photoInput').addEventListener('change', async e => {
+  const f = e.target.files && e.target.files[0]; e.target.value = '';
+  if (!f) return;
+  try {
+    if (SC.mode === 'gc') {
+      const img = await loadImage(f), s = Math.min(1, 1600 / Math.max(img.naturalWidth, img.naturalHeight));
+      SC.canvas.width = Math.round(img.naturalWidth * s); SC.canvas.height = Math.round(img.naturalHeight * s);
+      SC.canvas.getContext('2d').drawImage(img, 0, 0, SC.canvas.width, SC.canvas.height);
+      preview.src = SC.canvas.toDataURL('image/jpeg', 0.9); changeStep(2);
+    } else {
+      await ensureLib('qr');
+      const q = new Html5Qrcode('reader', { verbose: false });
+      let txt; try { txt = await q.scanFile(f, false); } finally { try { q.clear(); } catch (_) {} }
+      SC.handled = true; finalCode.value = txt; changeStep(3);
     }
+  } catch (err) { toast('No code found in that photo. Try again closer, or type it in.', { duration: 5000 }); }
+});
 
-    function addNew(data = {}) {
-        const div = document.createElement('div');
-        div.className = "item-card";
-        div.innerHTML = `
-            <button class="btn-del" onclick="this.parentElement.remove(); save(); refresh();"><i class="material-icons-round">close</i></button>
-            <div><label>Date</label><input type="date" class="d-date price-input" value="${data.date || ''}" onchange="save(); refresh();"></div>
-            <div><label>Price (₹)</label><input type="number" class="d-price price-input" value="${data.price || ''}" oninput="save(); refresh();"></div>
-            <div class="full-width">
-                <label>Giftcard's</label>
-                <select class="d-item price-input" onchange="save();">
-                    <option value="Amazon" ${data.item=='Amazon'?'selected':''}>Amazon</option>
-                    <option value="Flipkart" ${data.item=='Flipkart'?'selected':''}>Flipkart</option>
-                    <option value="Bigbasket" ${data.item=='Bigbasket'?'selected':''}>Bigbasket</option>
-                    <option value="Zepto" ${data.item=='Zepto'?'selected':''}>Zepto</option>
-                    <option value="Swiggy" ${data.item=='Swiggy'?'selected':''}>Swiggy</option>
-                    <option value="Dominos" ${data.item=='Dominos'?'selected':''}>Dominos</option>
-                </select>
-            </div>
-            <div class="full-width"><label>Ref ID (Barcode)</label><div class="scan-group"><input type="text" class="d-ref" value="${data.ref || ''}"><div class="btn-icon-scan" onclick="startScan(this, 'ref')"><i class="material-icons-round">barcode_scanner</i></div></div></div>
-            <div class="full-width"><label>Gift Code (OCR)</label><div class="scan-group"><input type="text" class="d-gc" value="${data.gc || ''}"><div class="btn-icon-scan" onclick="startScan(this, 'gc')"><i class="material-icons-round">photo_camera</i></div></div></div>
-            <div class="full-width"><label>Activation (QR)</label><div class="scan-group"><input type="text" class="d-act" value="${data.act || ''}"><div class="btn-icon-scan" onclick="startScan(this, 'act')"><i class="material-icons-round">qr_code_2</i></div><div class="btn-sms" onclick="sendSMS(this)"><i class="material-icons-round">sms</i></div></div></div>
-            <div><label>Disc (% or ₹)</label><input type="text" class="d-disc price-input" placeholder="e.g. 50% or 50" value="${data.disc || ''}" oninput="save(); refresh();"></div>
-            <div><label>Net (₹)</label><input type="text" class="d-net price-input" readonly><span class="savings-badge d-save" style="font-size:11px; font-weight:bold; color:var(--success); margin-top:4px; display:block;">Save: ₹0.00</span></div>
-            <div><label>Redeemed</label><select class="d-status price-input" onchange="save();"><option ${data.status=='No'?'selected':''}>No</option><option ${data.status=='Yes'?'selected':''}>Yes</option></select></div>
-        `;
-        document.getElementById('expenseList').appendChild(div);
-        refresh();
-    }
+/* --- steps 1-3 buttons --- */
+function retake() {
+  SC.ocrToken++; SC.handled = false;
+  if (SC.qr) { try { SC.qr.resume(); } catch (e) {} }
+  procBtn.disabled = false; procBtn.textContent = 'Read code';
+  changeStep(1);
+}
+function confirmCode() {
+  const v = finalCode.value.trim();
+  if (SC.input) { SC.input.value = v; SC.input.dispatchEvent(new Event('input', { bubbles: true })); }   // reuses the normal save/refresh path
+  stopScanner();
+}
+$('#btn-close').addEventListener('click', () => stopScanner());
+$('#btn-retake-2').addEventListener('click', retake);
+$('#btn-retake-3').addEventListener('click', retake);
+$('#btn-confirm').addEventListener('click', confirmCode);
+finalCode.addEventListener('keydown', e => { if (e.key === 'Enter') { e.preventDefault(); confirmCode(); } });
 
-    async function cleanupCamera() {
-        if (html5QrCode) {
-            try { if (html5QrCode.isScanning) await html5QrCode.stop(); } catch (e) {}
-            try { html5QrCode.clear(); } catch (e) {}
-            html5QrCode = null;
-        }
-        document.getElementById('reader').innerHTML = '';
-    }
+/* ================= app lifecycle ================= */
+// iOS/Android can kill a backgrounded page at any time: write pending edits right away and release the camera.
+document.addEventListener('visibilitychange', () => { if (document.hidden) { flushSave(); if (overlayOpen()) stopScanner(); } });
+window.addEventListener('pagehide', flushSave);
 
-    async function startScan(btn, mode) {
-        activeInput = btn.parentElement.querySelector('input');
-        currentMode = mode;
-        tempScannedText = "";
-        
-        await cleanupCamera();
-        document.getElementById('scanner-overlay').style.display = 'flex';
-        changeStep(1);
+// Hide the bottom bar while typing so it never floats over the keyboard.
+const typing = el => el && el.matches && el.matches('input:not([type=file]):not([readonly]), select');
+document.addEventListener('focusin', e => { if (typing(e.target)) document.body.classList.add('kb'); });
+document.addEventListener('focusout', () => setTimeout(() => { if (!typing(document.activeElement)) document.body.classList.remove('kb'); }, 60));
 
-        const win = document.getElementById('scan-window');
-        const snap = document.getElementById('btn-snap');
-        const hint = document.getElementById('scan-hint');
-
-        let config = { fps: 20 };
-        if (mode === 'act') {
-            win.className = "scan-window square-box";
-            hint.innerText = "Center QR Code";
-            snap.style.display = 'none';
-            config.qrbox = { width: 250, height: 250 };
-        } else {
-            win.className = "scan-window rect-box";
-            hint.innerText = (mode === 'gc') ? "Snap Gift Code" : "Center Barcode";
-            snap.style.display = (mode === 'gc') ? 'flex' : 'none';
-            config.qrbox = { width: 280, height: 110 };
-        }
-
-        try {
-            html5QrCode = new Html5Qrcode("reader");
-            await html5QrCode.start({ facingMode: "environment" }, config, (txt) => {
-                if (mode !== 'gc') {
-                    tempScannedText = txt;
-                    document.getElementById('final-code').value = txt;
-                    html5QrCode.pause();
-                    captureFrame();
-                    changeStep(2);
-                }
-            });
-        } catch (err) {
-            alert("Camera failed to start.");
-            stopScanner();
-        }
-    }
-
-    function manualSnap() {
-        if(html5QrCode) {
-            html5QrCode.pause();
-            captureFrame();
-            changeStep(2);
-        }
-    }
-
-    function captureFrame() {
-        const video = document.querySelector('#reader video');
-        const canvas = document.getElementById('hidden-canvas');
-        if(!video) return;
-
-        const isSquare = (currentMode === 'act');
-        canvas.width = isSquare ? 500 : 600;
-        canvas.height = isSquare ? 500 : 250;
-        
-        const ctx = canvas.getContext('2d'), vW = video.videoWidth, vH = video.videoHeight;
-        const cropW = isSquare ? (vH * 0.75) : (vW * 0.85);
-        const cropH = isSquare ? cropW : (cropW / 2.5);
-        const startX = (vW - cropW) / 2, startY = (vH * 0.45) - (cropH / 2);
-        
-        ctx.drawImage(video, startX, startY, cropW, cropH, 0, 0, canvas.width, canvas.height);
-        document.getElementById('captured-img').src = canvas.toDataURL('image/png');
-    }
-
-    async function processPreview() {
-        const final = document.getElementById('final-code');
-        const btn = document.getElementById('btn-process');
-        
-        if (currentMode === 'gc') {
-            btn.innerText = "READING...";
-            btn.disabled = true;
-            try {
-                if (!worker) worker = await Tesseract.createWorker('eng');
-                const { data: { text } } = await worker.recognize(document.getElementById('hidden-canvas'));
-                final.value = text.replace(/[^A-Z0-9-]/gi, '').trim();
-            } catch (e) {
-                alert("OCR Error. Please type manually.");
-                final.value = "";
-            }
-            btn.innerText = "PROCESS CODE";
-            btn.disabled = false;
-            changeStep(3);
-        } else {
-            final.value = tempScannedText;
-            changeStep(3);
-        }
-    }
-
-    function stopScanner() {
-        cleanupCamera();
-        document.getElementById('scanner-overlay').style.display = 'none';
-    }
-
-    function retakePhoto() {
-        if(html5QrCode) html5QrCode.resume();
-        tempScannedText = "";
-        changeStep(1);
-    }
-
-    function confirmToUI() {
-        if(activeInput) {
-            activeInput.value = document.getElementById('final-code').value;
-            save(); refresh();
-        }
-        stopScanner();
-    }
-
-    function changeStep(s) {
-        document.querySelectorAll('.scan-step').forEach(el => el.classList.remove('active-step'));
-        document.getElementById('step-' + s).classList.add('active-step');
-    }
-
-    function sendSMS(btn) {
-        const val = btn.parentElement.querySelector('input').value;
-        if(!val) return alert("Scan QR first!");
-        window.location.href = `sms:?body=${encodeURIComponent(val)}`;
-    }
-
-    function refresh() {
-        const year = document.getElementById('yearFilter').value;
-        let total = 0;
-        document.querySelectorAll('.item-card').forEach(card => {
-            const dt = card.querySelector('.d-date').value, 
-                  price = parseFloat(card.querySelector('.d-price').value) || 0, 
-                  discRaw = card.querySelector('.d-disc').value.trim();
-            
-            let saved = 0;
-            if (discRaw !== "") {
-                if (discRaw.endsWith('%')) {
-                    const discPercent = parseFloat(discRaw.replace('%', '')) || 0;
-                    saved = price * (discPercent / 100);
-                } else {
-                    saved = parseFloat(discRaw) || 0;
-                }
-            }
-
-            const net = Math.max(0, price - saved);
-            card.querySelector('.d-net').value = net.toFixed(2);
-            card.querySelector('.d-save').innerText = `Save: ₹${saved.toFixed(2)}`;
-            if(!dt || dt.startsWith(year)) { total += net; card.style.display = "grid"; } else card.style.display = "none";
-        });
-        document.getElementById('totalINR').innerText = `₹${total.toLocaleString('en-IN', {minimumFractionDigits: 2})}`;
-    }
-
-    function save() {
-        const list = Array.from(document.querySelectorAll('.item-card')).map(c => ({
-            date: c.querySelector('.d-date').value, item: c.querySelector('.d-item').value, 
-            ref: c.querySelector('.d-ref').value, price: c.querySelector('.d-price').value, 
-            disc: c.querySelector('.d-disc').value, gc: c.querySelector('.d-gc').value, 
-            act: c.querySelector('.d-act').value, status: c.querySelector('.d-status').value
-        }));
-        localStorage.setItem(DB_KEY, JSON.stringify(list));
-    }
-
-    async function exportData() {
-        const data = localStorage.getItem(DB_KEY);
-        if (!data || data === "[]") {
-            alert("No data to export!");
-            return;
-        }
-
-        if ('showSaveFilePicker' in window) {
-            try {
-                const handle = await window.showSaveFilePicker({
-                    suggestedName: 'GiftCard_Backup.json',
-                    types: [{
-                        description: 'JSON Data',
-                        accept: {'application/json': ['.json']},
-                    }],
-                });
-                const writable = await handle.createWritable();
-                await writable.write(data);
-                await writable.close();
-                return;
-            } catch (err) {
-                if (err.name !== 'AbortError') console.error(err);
-                if (err.name === 'AbortError') return; 
-            }
-        }
-
-        let fileName = prompt("Enter filename:", "GiftCard_Backup");
-        if (fileName === null) return;
-        fileName = fileName.trim().replace(/[^a-z0-9_\-]/gi, '_') || "Backup";
-        
-        const blob = new Blob([data], { type: 'application/json' });
-        const url = URL.createObjectURL(blob);
-        const a = document.createElement('a');
-        a.href = url;
-        a.download = fileName.endsWith('.json') ? fileName : fileName + '.json';
-        document.body.appendChild(a);
-        a.click();
-        setTimeout(() => { document.body.removeChild(a); window.URL.revokeObjectURL(url); }, 0);
-    }
-
-    function importData(event) {
-        const reader = new FileReader();
-        reader.onload = (e) => { 
-            try {
-                JSON.parse(e.target.result);
-                localStorage.setItem(DB_KEY, e.target.result); 
-                location.reload(); 
-            } catch(err) { alert("Invalid backup file."); }
-        };
-        reader.readAsText(event.target.files[0]);
-    }
-
-    window.onload = init;
+function init() {
+  renderAll(loadSaved());
+  rebuildYears(String(new Date().getFullYear()));
+  refresh();
+  if (navigator.storage && navigator.storage.persist) navigator.storage.persist().catch(() => {});   // asks the browser not to evict data
+}
+init();
+})();
 </script>
 </body>
 </html>
